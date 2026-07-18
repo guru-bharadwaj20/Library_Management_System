@@ -1,4 +1,4 @@
-/* ===== Library Management System — customer web frontend =====
+/* ===== BiblioAI — customer web frontend =====
    Vanilla JS SPA. Talks to the FastAPI backend on the same origin
    (mounted at /app, API routes live at the origin root: /auth, /books, /ai...). */
 
@@ -38,7 +38,7 @@ async function api(method, path, { json, form } = {}) {
 const go = (hash) => { location.hash = hash; };
 
 // ---------- shared chrome ----------
-const BRAND = `📚 Library<span class="accent"> System</span>`;
+const BRAND = `📚 Biblio<span class="accent">AI</span>`;
 
 function navPublic() {
   return `
@@ -92,7 +92,7 @@ function footer() {
         </div>
       </div>
       <div class="footer-bottom">
-        <span>© 2026 Library Management System.</span>
+        <span>© 2026 BiblioAI.</span>
         <span>FastAPI · SQLAlchemy · Google Gemini</span>
       </div>
     </div>
@@ -105,7 +105,7 @@ function landing() {
     ${navPublic()}
     <section class="hero">
       <div class="container">
-        <h1>Library <span class="accent">Management System</span></h1>
+        <h1>Biblio<span class="accent">AI</span></h1>
         <p>Your all-in-one campus library companion for browsing the catalogue,
            AI-powered search, and personalized reading recommendations.</p>
         <div class="hero-actions">

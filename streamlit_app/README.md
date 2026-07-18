@@ -1,8 +1,9 @@
-# Library Management System — Frontend (Streamlit)
+# BiblioAI — Staff Console (Streamlit)
 
-A Streamlit UI for the Library Management System. It is a **pure API client** —
-all data and business rules live in the FastAPI backend; this app only renders
-and calls endpoints.
+A Streamlit UI for **BiblioAI**, aimed at librarian/staff tasks (circulation and
+analytics). It is a **pure API client** — all data and business rules live in the
+FastAPI backend; this app only renders and calls endpoints. (Students use the
+customer web app served at `http://localhost:8000/app/`.)
 
 ## Features
 

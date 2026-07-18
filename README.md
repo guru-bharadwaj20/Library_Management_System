@@ -1,144 +1,111 @@
-# Library Management System
+# 📚 BiblioAI
 
-What began as a single-file **Tkinter desktop app** backed by CSV files is now a
-**full-stack application**: a FastAPI + SQLAlchemy REST API with JWT auth and
-role-based access, a Streamlit frontend, and an **AI librarian assistant** powered
-by Google Gemini (natural-language search, embedding-based semantic search,
-recommendations, and metadata enrichment).
+**An AI-powered campus library** — browse the catalogue, search in plain English or by meaning, and get personalized reading recommendations.
 
-It runs **locally on SQLite by design** — this is a portfolio/learning project,
-not a hosted service. See [Known limitations](#-known-limitations) for the
-tradeoffs that choice implies.
+![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-ORM-CA2C2C)
+![Streamlit](https://img.shields.io/badge/Streamlit-console-FF4B4B?logo=streamlit&logoColor=white)
+![Gemini](https://img.shields.io/badge/Google_Gemini-AI-4d7cff?logo=googlegemini&logoColor=white)
+
+![BiblioAI landing page](images/landing.png)
+
+BiblioAI began as a single-file **Tkinter desktop app** and grew into a full-stack system: a **FastAPI + SQLAlchemy** REST API with JWT auth and role-based access, a polished **customer web app** (served by the same backend), and a **Streamlit staff console** — with an AI layer powered by **Google Gemini**. It runs locally on SQLite by design.
 
 ---
 
-## 🧭 Architecture
+## ✨ Features
+
+- **AI Librarian** — ask for a book in plain English; Gemini reasons over the catalogue and returns validated matches.
+- **Semantic Search** — books and queries are embedded; results are ranked by cosine similarity (computed in Python — no vector DB).
+- **Recommendations** — personalized picks generated from a reader's borrowing history.
+- **Circulation & analytics** — issue/return with penalty rules, plus most-borrowed titles, penalty revenue, and loan stats (staff console).
+- **Auth & roles** — JWT + bcrypt, with student (read-only) vs. librarian (write) access.
+- **Graceful degradation** — with no API key, AI endpoints return `503` and everything else keeps working.
+
+## 🖼️ Screens
+
+| Catalogue dashboard | AI Search |
+|---|---|
+| ![dashboard](images/dashboard.png) | ![ai search](images/ai-search.png) |
+
+| Semantic Search | Sign in |
+|---|---|
+| ![semantic search](images/semantic-search.png) | ![login](images/login.png) |
+
+## 🧱 Tech stack
+
+| Layer | Tech |
+|---|---|
+| API | FastAPI, SQLAlchemy 2.0, SQLite, PyJWT, bcrypt, pydantic-settings |
+| AI | Google Gemini (`gemini-2.5-flash` chat + `gemini-embedding-001`), numpy |
+| Customer web app | Vanilla HTML/CSS/JS SPA (no build step), served by FastAPI at `/app` |
+| Staff console | Streamlit |
+| Legacy | Original Tkinter + CSV app, kept under `legacy/` for provenance |
+
+## 🏗️ Architecture
 
 ```
-┌──────────────────┐        HTTP/JSON        ┌────────────────────────────┐
-│  streamlit_app/  │  ───────────────────▶   │          backend/          │
-│  Streamlit UI    │   JWT Bearer token      │     FastAPI + SQLAlchemy    │
-│  (thin client)   │  ◀───────────────────   │  auth · books · students · │
-└──────────────────┘                         │  borrow · ai · analytics   │
-                                             └───────┬───────────┬────────┘
-                                                     │           │
-                                   ┌─────────────────▼──┐   ┌────▼──────────────┐
-                                   │  SQLite (local)     │   │  Google Gemini    │
-                                   │  users · books ·    │   │  chat + embeddings│
-                                   │  students ·         │   │  (optional; 503   │
-                                   │  borrow_records     │   │  without a key)   │
-                                   └─────────────────────┘   └───────────────────┘
+ customer web app (/app)  ─┐
+                           ├─▶  FastAPI  ──▶  SQLite (users · books · students · borrow_records)
+ Streamlit staff console ─┘        │
+                                   └─▶  Google Gemini  (chat + embeddings)
 ```
 
-### Repository layout
-
 ```
-backend/
-  ├── app/
-  │   ├── config.py            pydantic-settings (env / .env)
-  │   ├── database.py          SQLAlchemy engine + session
-  │   ├── models.py            User · Book · Student · BorrowRecord
-  │   ├── schemas.py           Pydantic request/response contracts
-  │   ├── security.py          bcrypt hashing + JWT
-  │   ├── deps.py              auth / require_librarian dependencies
-  │   ├── ai_service.py        Gemini chat (search, recommend, enrich)
-  │   ├── embeddings_service.py Gemini embeddings + cosine similarity
-  │   ├── seed_data.py         seed books/students + create librarian
-  │   ├── seed_embeddings.py   backfill book embeddings
-  │   └── routers/             auth · books · students · borrow · ai · analytics
-  └── seed/                    canonical seed CSVs (books, students)
-streamlit_app/                 Streamlit UI — a pure API client
-legacy/
-  └── tkinter_app/             the original Tkinter + CSV app, kept for provenance
+backend/            FastAPI API + customer web app mount (source of truth)
+  ├── app/          config · models · schemas · security · routers · ai_service · embeddings_service
+  └── seed/         seed CSVs
+frontend_web/       customer web app (index.html · styles.css · app.js)
+streamlit_app/      staff console (Streamlit)
+legacy/tkinter_app/ the original desktop app
 ```
 
-## 🚀 Features
+## 🚀 Quick start
 
-- **FastAPI backend** — REST API, automatic OpenAPI docs, JWT auth, librarian vs.
-  student roles.
-- **Relational persistence** — `borrow_records` is the full circulation history
-  (it replaced the original `logs.csv`); the backend is the single source of truth.
-- **Fixed penalty bug** — the original computed the due date as *today − grace
-  period* (always penalising); the ported logic correctly uses *issue date +
-  grace period*.
-- **Two AI search techniques** (Google Gemini), kept side by side to show the
-  contrast:
-  - **AI Search (LLM reasoning)** — Gemini reasons over the whole catalogue in one prompt.
-  - **Semantic Search (embeddings)** — books and the query are embedded; results
-    ranked by cosine similarity, computed locally in Python (no vector DB).
-- **AI recommendations** — personalized picks from a reader's borrow history.
-- **AI metadata enrichment** — one-click genre / reading level / summary when
-  adding a book (librarian reviews before saving).
-- **Circulation analytics** — most-borrowed titles, penalty revenue, active vs.
-  historical loans, overdue count, average loan duration — from real history.
-- **Graceful AI degradation** — with no `GEMINI_API_KEY`, all AI endpoints return
-  **503** and the rest of the system is unaffected.
-- **Streamlit frontend** — role-aware UI: dashboard, catalogue, circulation, AI
-  Librarian, and analytics tabs.
-- Original **Tkinter GUI** retained under `legacy/` to show the evolution.
-
-## ⚡ Quick start
+**Backend + API + customer web app**
 
 ```bash
-# 1. Backend
-cd backend && python -m venv .venv && .venv\Scripts\activate   # (Windows)
+cd backend
+python -m venv .venv && .venv\Scripts\activate      # Windows (use source .venv/bin/activate on macOS/Linux)
 pip install -r requirements.txt
-cp .env.example .env                 # add GEMINI_API_KEY to enable AI (optional)
-python -m app.seed_data              # seeds data + prints librarian credentials
-python -m app.seed_embeddings        # backfill book embeddings (needs GEMINI_API_KEY)
-uvicorn app.main:app --reload        # API at http://localhost:8000/docs
-
-# 2. Frontend (new terminal)
-cd streamlit_app && python -m venv .venv && .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env                 # API_URL=http://localhost:8000
-streamlit run app.py                 # UI at http://localhost:8501
+cp .env.example .env                                # add GEMINI_API_KEY to enable AI (optional)
+python -m app.seed_data                             # seed data + create the librarian account
+python -m app.seed_embeddings                       # backfill embeddings (needs GEMINI_API_KEY)
+uvicorn app.main:app --reload
 ```
 
-See [backend/README.md](backend/README.md) and
-[streamlit_app/README.md](streamlit_app/README.md) for the full env-var list and
-per-component details.
+- 🌐 **Customer web app:** http://localhost:8000/app/
+- 📘 **API docs:** http://localhost:8000/docs
 
----
+**Staff console (optional)**
 
-## ✅ What this project demonstrates
+```bash
+cd streamlit_app
+python -m venv .venv && .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env                                # API_URL=http://localhost:8000
+streamlit run app.py                                # http://localhost:8501
+```
 
-- Designing a **REST API** with FastAPI: routing, dependency injection, OpenAPI docs.
-- **Relational data modelling** with SQLAlchemy.
-- **Auth & authorization** — JWT tokens, bcrypt hashing, role-based access control.
-- **Two LLM integration patterns** — direct prompting vs. embeddings + cosine
-  similarity — plus disciplined guardrails (validate model output against the DB,
-  degrade to 503, fail-soft so the provider can never 500 an endpoint).
-- Porting real domain logic from a legacy app, **fixing a bug** in the process.
-- A clean **client/server split**: the Streamlit UI holds no business logic.
-
----
+See [backend/README.md](backend/README.md) for the full API surface and environment variables.
 
 ## ⚠️ Known limitations
 
-Honest tradeoffs, made deliberately for a local portfolio project:
+Deliberate tradeoffs for a local portfolio project:
 
-- **SQLite, single-writer.** Fine for one user on one machine. It would not handle
-  concurrent writers (issue/return from multiple clients at once) — that would need
-  Postgres and row-level locking. `DATABASE_URL` is routed through SQLAlchemy, so a
-  swap is *possible*, but it's out of scope and untested here.
-- **Schema via `create_all`, not migrations.** New columns (e.g. `embedding`) appear
-  only on a fresh database — after a model change, delete `library.db` and re-seed.
-  A production system would use Alembic.
-- **JWT lives in Streamlit `session_state` (in memory).** This avoids `localStorage`
-  XSS token theft, but the token doesn't survive a hard browser refresh — you log in
-  again. A "remember me" flow was intentionally not added.
-- **Embeddings are computed on book creation and via the backfill script**, not on
-  edit — there is no update-book endpoint, so an edited title/summary won't
-  re-embed until `seed_embeddings.py --force` is run.
-- **Semantic search loads all embeddings and ranks in Python.** Perfect for a
-  catalogue of this size; for thousands of books this should move to a real vector
-  index (e.g. `pgvector`).
-- **AI output is non-deterministic and costs API calls.** All AI features are
-  optional and degrade to 503 without a key.
-
----
+- **SQLite, single-writer** — great for one user locally; concurrent writers would need Postgres.
+- **Schema via `create_all`, not migrations** — after a model change, delete `library.db` and re-seed.
+- **JWT in browser session memory** — no hard-refresh survival (avoids `localStorage` token theft).
+- **Embeddings on create/backfill only** — an edited book re-embeds via `seed_embeddings.py --force`.
+- **AI is optional & non-deterministic** — degrades to `503` without a key; ranking in Python suits a small catalogue.
 
 ## 📌 Disclaimer
 
-This project was developed for academic and portfolio purposes. **Redistributing or presenting this project as your own is strictly prohibited.**
+Built for academic and portfolio purposes. **Redistributing or presenting this project as your own is prohibited.**
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE).

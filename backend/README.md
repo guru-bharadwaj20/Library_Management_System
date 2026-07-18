@@ -1,9 +1,9 @@
-# Library Management System — Backend (FastAPI)
+# BiblioAI — Backend (FastAPI)
 
-REST API for the Library Management System. It ports the domain logic from the
-original Tkinter app (`legacy/tkinter_app/codes.py`) into a proper service backed
-by a relational database, JWT auth, and role-based access control, and adds an
-optional AI layer (Google Gemini).
+REST API for **BiblioAI**. It ports the domain logic from the original Tkinter
+app (`legacy/tkinter_app/codes.py`) into a proper service backed by a relational
+database, JWT auth, and role-based access control, adds an optional AI layer
+(Google Gemini), and serves the customer web app at `/app`.
 
 Runs on a **local SQLite database by design** — see "Scope" below.
 

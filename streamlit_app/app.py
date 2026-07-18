@@ -1,4 +1,4 @@
-"""Library Management System — Streamlit frontend.
+"""BiblioAI — Streamlit frontend (librarian/staff tooling).
 
 Talks to the FastAPI backend over HTTP; the backend is the single source of
 truth. Librarians get write actions (issue/return, add book/student, dashboard);
@@ -9,7 +9,7 @@ import streamlit as st
 
 import api_client as api
 
-st.set_page_config(page_title="Library Management System", page_icon="📚", layout="wide")
+st.set_page_config(page_title="BiblioAI", page_icon="📚", layout="wide")
 
 
 # --------------------------------------------------------------------------- #
@@ -32,8 +32,8 @@ def logout():
 # Login screen
 # --------------------------------------------------------------------------- #
 def login_screen():
-    st.title("📚 Library Management System")
-    st.caption("A full-stack port of the original Tkinter app — FastAPI + SQLAlchemy backend.")
+    st.title("📚 BiblioAI")
+    st.caption("Staff console — FastAPI + SQLAlchemy backend. (Students use the web app at /app.)")
 
     with st.form("login_form"):
         username = st.text_input("Username")
@@ -413,13 +413,13 @@ def main():
         return
 
     with st.sidebar:
-        st.markdown(f"### 📚 Library\nSigned in as **{st.session_state.get('username')}**")
+        st.markdown(f"### 📚 BiblioAI\nSigned in as **{st.session_state.get('username')}**")
         st.caption(f"Role: {st.session_state.get('role')}")
         if st.button("Log out", use_container_width=True):
             logout()
             st.rerun()
 
-    st.title("Library Management System")
+    st.title("BiblioAI")
 
     if is_librarian():
         tabs = st.tabs(

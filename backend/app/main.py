@@ -19,8 +19,8 @@ FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend_web"
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="Library Management System API",
-    description="Full-stack port of the original Tkinter library system.",
+    title="BiblioAI API",
+    description="AI-powered campus library — catalogue, AI search, recommendations, and circulation.",
     version="1.0.0",
 )
 
