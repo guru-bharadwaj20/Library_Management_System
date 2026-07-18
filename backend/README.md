@@ -10,6 +10,7 @@ relational database, JWT auth, and role-based access control.
 - **SQLAlchemy 2.0** — ORM; swap SQLite (dev) ↔ Postgres (prod) via `DATABASE_URL` alone
 - **PyJWT + bcrypt** — token auth and password hashing
 - **pydantic-settings** — 12-factor config from env / `.env`
+- **google-genai** — Gemini-powered search, recommendations, and metadata enrichment
 
 ## Data model
 
@@ -48,20 +49,24 @@ All four constants (`BORROW_LIMIT`, `GRACE_PERIOD_DAYS`, `BASE_PENALTY_RATE`,
 | `GET /students/{id}/borrowed` | any user | Full borrow history |
 | `POST /borrow/issue` | librarian | Issue a book (validates stock + borrow limit) |
 | `POST /borrow/return` | librarian | Return a book, compute penalty |
-| `POST /ai/search` | any user | Natural-language catalogue search (Claude) |
-| `GET /ai/recommend/{id}` | any user | Personalized recommendations from borrow history (Claude) |
+| `POST /ai/search` | any user | Natural-language catalogue search (Gemini) |
+| `GET /ai/recommend/{id}` | any user | Personalized recommendations from borrow history (Gemini) |
+| `POST /ai/enrich` | librarian | Suggest genre / reading level / summary for a book (Gemini) |
 | `GET /health` | public | Liveness probe |
 
 Interactive docs at `http://localhost:8000/docs`.
 
-### AI features (Claude)
+### AI features (Google Gemini)
 
-`/ai/search` and `/ai/recommend` call the Claude API. Set `ANTHROPIC_API_KEY` in
-`.env` to enable them; without it they return **503** and the rest of the system
-is unaffected. The backend validates every `book_id` the model returns against
+`/ai/search`, `/ai/recommend`, and `/ai/enrich` call the Gemini API via the
+`google-genai` SDK. Set `GEMINI_API_KEY` in `.env` to enable them; without it
+they return **503** and the rest of the system is unaffected. For search and
+recommendations the backend validates every `book_id` the model returns against
 the live catalogue, so hallucinated ids are dropped before reaching the client.
-For a large catalogue, the inline-catalogue prompt should be replaced with an
-embeddings + `pgvector` retrieval step so only top-K candidates are sent.
+`/ai/enrich` suggests genre / reading level / summary for a book — the librarian
+reviews the suggestions before saving. For a large catalogue, the inline-catalogue
+prompt should be replaced with an embeddings + `pgvector` retrieval step so only
+top-K candidates are sent.
 
 ## Local setup
 

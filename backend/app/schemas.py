@@ -30,6 +30,9 @@ class BookCreate(BaseModel):
     title: str
     author: str = ""
     total_copies: int = Field(default=1, ge=0)
+    genre: str | None = None
+    reading_level: str | None = None
+    summary: str | None = None
 
 
 class BookOut(BaseModel):
@@ -39,6 +42,9 @@ class BookOut(BaseModel):
     author: str
     total_copies: int
     available_copies: int
+    genre: str | None = None
+    reading_level: str | None = None
+    summary: str | None = None
 
 
 # ---- Students ----
@@ -107,3 +113,16 @@ class AISearchResponse(BaseModel):
 class AIRecommendResponse(BaseModel):
     student_id: str
     recommendations: list[AIHit]
+
+
+class AIEnrichRequest(BaseModel):
+    title: str
+    author: str = ""
+
+
+class AIEnrichResponse(BaseModel):
+    title: str
+    author: str
+    genre: str
+    reading_level: str
+    summary: str

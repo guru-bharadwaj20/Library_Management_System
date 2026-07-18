@@ -53,11 +53,19 @@ def list_books(q: str | None = None):
     return _request("GET", "/books", params={"q": q} if q else None)
 
 
-def add_book(book_id, title, author, total_copies):
+def add_book(book_id, title, author, total_copies, genre=None, reading_level=None, summary=None):
     return _request(
         "POST",
         "/books",
-        json={"book_id": book_id, "title": title, "author": author, "total_copies": total_copies},
+        json={
+            "book_id": book_id,
+            "title": title,
+            "author": author,
+            "total_copies": total_copies,
+            "genre": genre,
+            "reading_level": reading_level,
+            "summary": summary,
+        },
     )
 
 
@@ -90,3 +98,7 @@ def ai_search(query: str):
 
 def ai_recommend(student_id: str):
     return _request("GET", f"/ai/recommend/{student_id}")
+
+
+def ai_enrich(title: str, author: str):
+    return _request("POST", "/ai/enrich", json={"title": title, "author": author})

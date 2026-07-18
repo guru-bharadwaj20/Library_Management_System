@@ -1,27 +1,33 @@
-"""LLM-backed features (natural-language search, recommendations) via Claude.
+"""LLM-backed features (natural-language search, recommendations, metadata
+enrichment) via Google Gemini.
 
 Kept deliberately decoupled from the ORM — callers pass plain dicts/lists, so
-this module is easy to unit-test without a database. The model is asked to
-return JSON; we parse defensively and the router validates every returned
-book_id against the real catalogue, so a hallucinated id is simply dropped.
+this module is easy to unit-test without a database. We ask Gemini for JSON
+(`response_mime_type="application/json"`) and parse defensively; the router
+validates every returned book_id against the real catalogue, so a hallucinated
+id is simply dropped.
 """
 import json
+from functools import lru_cache
 
-import anthropic
+from google import genai
+from google.genai import types
 
 from .config import settings
 
-# Small catalogue → passing it inline is fine. For a large library this would
-# move to embeddings + a vector store (pgvector) so we only send top-K matches.
 _MAX_TOKENS = 1024
 
 
 def is_configured() -> bool:
-    return bool(settings.anthropic_api_key)
+    return bool(settings.gemini_api_key)
 
 
-def _client() -> anthropic.Anthropic:
-    return anthropic.Anthropic(api_key=settings.anthropic_api_key)
+@lru_cache(maxsize=1)
+def _client() -> genai.Client:
+    # Cache the client for the process lifetime. A fresh Client per call gets
+    # garbage-collected mid-request, and its finalizer closes the shared httpx
+    # client out from under the in-flight request ("client has been closed").
+    return genai.Client(api_key=settings.gemini_api_key)
 
 
 def _catalogue_lines(books: list[dict]) -> str:
@@ -32,7 +38,7 @@ def _catalogue_lines(books: list[dict]) -> str:
 
 
 def _extract_json(text: str) -> dict:
-    text = text.strip()
+    text = (text or "").strip()
     if text.startswith("```"):
         # Strip a ```json ... ``` fence if the model added one.
         parts = text.split("```")
@@ -43,14 +49,17 @@ def _extract_json(text: str) -> dict:
 
 
 def _ask_json(system: str, user: str) -> dict:
-    resp = _client().messages.create(
-        model=settings.ai_model,
-        max_tokens=_MAX_TOKENS,
-        system=system,
-        messages=[{"role": "user", "content": user}],
+    resp = _client().models.generate_content(
+        model=settings.gemini_model,
+        contents=user,
+        config=types.GenerateContentConfig(
+            system_instruction=system,
+            response_mime_type="application/json",
+            max_output_tokens=_MAX_TOKENS,
+            temperature=0.2,
+        ),
     )
-    text = next((b.text for b in resp.content if b.type == "text"), "")
-    return _extract_json(text)
+    return _extract_json(resp.text)
 
 
 def semantic_search(query: str, books: list[dict]) -> list[dict]:
@@ -83,3 +92,27 @@ def recommend(borrowed: list[tuple[str, str]], books: list[dict]) -> list[dict]:
     history = ", ".join(f"{title} ({bid})" for bid, title in borrowed) or "nothing yet"
     user = f"Catalogue:\n{_catalogue_lines(books)}\n\nAlready borrowed: {history}"
     return _ask_json(system, user).get("recommendations", [])
+
+
+def enrich_book(title: str, author: str) -> dict:
+    """Suggest catalogue metadata for a book from its title/author.
+
+    Returns {"genre": str, "reading_level": str, "summary": str}. Values may be
+    empty strings if the model is unsure — the caller decides what to keep.
+    """
+    system = (
+        "You are a library cataloguing assistant. Given a book's title and author, "
+        "provide concise catalogue metadata. Respond with ONLY a JSON object of the "
+        'form {"genre": "...", "reading_level": "...", "summary": "..."}. '
+        "genre: one or two words (e.g. 'Dystopian fiction'). "
+        "reading_level: one of 'Children', 'Young Adult', 'Adult', or 'Academic'. "
+        "summary: one or two sentences, spoiler-free. "
+        "If you are not confident the book exists, use empty strings rather than guessing."
+    )
+    user = f"Title: {title!r}\nAuthor: {author!r}"
+    data = _ask_json(system, user)
+    return {
+        "genre": (data.get("genre") or "").strip(),
+        "reading_level": (data.get("reading_level") or "").strip(),
+        "summary": (data.get("summary") or "").strip(),
+    }

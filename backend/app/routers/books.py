@@ -38,6 +38,9 @@ def add_book(
         author=payload.author,
         total_copies=payload.total_copies,
         available_copies=payload.total_copies,
+        genre=payload.genre,
+        reading_level=payload.reading_level,
+        summary=payload.summary,
     )
     db.add(book)
     db.commit()

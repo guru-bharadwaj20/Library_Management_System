@@ -36,6 +36,10 @@ class Book(Base):
     author = Column(String, nullable=False, default="")
     total_copies = Column(Integer, nullable=False, default=0)
     available_copies = Column(Integer, nullable=False, default=0)
+    # AI-enriched metadata (nullable — populated on demand via /ai/enrich).
+    genre = Column(String, nullable=True)
+    reading_level = Column(String, nullable=True)
+    summary = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     records = relationship("BorrowRecord", back_populates="book")

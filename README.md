@@ -46,8 +46,10 @@ legacy/
 - **Fixed penalty bug** — the original computed the due date as *today − grace
   period* (always penalising); the ported logic correctly uses *issue date +
   grace period*.
-- **AI Librarian (Claude)** — natural-language catalogue search and personalized
-  recommendations from borrow history; degrades gracefully to 503 without an API key.
+- **AI Librarian (Google Gemini)** — natural-language catalogue search,
+  personalized recommendations from borrow history, and one-click metadata
+  enrichment (genre / reading level / summary) when adding a book; degrades
+  gracefully to 503 without an API key.
 - Original **Tkinter GUI** retained under `legacy/` to show the evolution.
 
 ## ⚡ Quick start

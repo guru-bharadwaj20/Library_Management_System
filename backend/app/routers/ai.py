@@ -1,28 +1,54 @@
-"""AI-powered endpoints: natural-language search and personalized recommendations.
+"""AI-powered endpoints (Google Gemini): natural-language search, personalized
+recommendations, and catalogue metadata enrichment.
 
-Both degrade gracefully: if no ANTHROPIC_API_KEY is configured they return 503,
-so the rest of the system works without AI. Every book_id the model returns is
-validated against the live catalogue before being sent back to the client.
+All degrade gracefully: if no GEMINI_API_KEY is configured they return 503, so
+the rest of the system works without AI. Every book_id the model returns for
+search/recommend is validated against the live catalogue before being sent back.
 """
-import anthropic
 from fastapi import APIRouter, Depends, HTTPException, status
+from google.genai import errors as genai_errors
 from sqlalchemy.orm import Session
 
 from .. import ai_service
 from ..database import get_db
-from ..deps import get_current_user
+from ..deps import get_current_user, require_librarian
 from ..models import Book, BorrowRecord, Student
-from ..schemas import AIHit, AIRecommendResponse, AISearchRequest, AISearchResponse
+from ..schemas import (
+    AIEnrichRequest,
+    AIEnrichResponse,
+    AIHit,
+    AIRecommendResponse,
+    AISearchRequest,
+    AISearchResponse,
+)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+
+_UPSTREAM = status.HTTP_502_BAD_GATEWAY
 
 
 def _require_ai():
     if not ai_service.is_configured():
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
-            "AI features are not configured. Set ANTHROPIC_API_KEY in the backend .env.",
+            "AI features are not configured. Set GEMINI_API_KEY in the backend .env.",
         )
+
+
+def _run_ai(fn, *args, **kwargs):
+    """Call an ai_service function, turning any failure into a clean 502.
+
+    The AI provider is an external dependency — a bad key, a timeout, a garbled
+    response, or an SDK quirk must never surface as a 500.
+    """
+    try:
+        return fn(*args, **kwargs)
+    except genai_errors.APIError as exc:
+        raise HTTPException(_UPSTREAM, f"AI request failed: {exc}")
+    except (ValueError, KeyError):
+        raise HTTPException(_UPSTREAM, "AI returned an unparseable response; try again.")
+    except Exception as exc:  # noqa: BLE001 — external call: fail soft, never 500
+        raise HTTPException(_UPSTREAM, f"AI request failed: {exc}")
 
 
 def _books_payload(db: Session) -> list[dict]:
@@ -65,15 +91,7 @@ def ai_search(
     _require_ai()
     if not payload.query.strip():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "query must not be empty")
-    try:
-        results = ai_service.semantic_search(payload.query, _books_payload(db))
-    except anthropic.APIError as exc:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"AI request failed: {exc}")
-    except (ValueError, KeyError):
-        raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY,
-            "AI returned an unparseable response; try rephrasing.",
-        )
+    results = _run_ai(ai_service.semantic_search, payload.query, _books_payload(db))
     return AISearchResponse(query=payload.query, hits=_to_hits(db, results))
 
 
@@ -95,15 +113,24 @@ def ai_recommend(
         .filter(BorrowRecord.student_pk == student.id)
         .all()
     ]
-    try:
-        results = ai_service.recommend(borrowed, _books_payload(db))
-    except anthropic.APIError as exc:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"AI request failed: {exc}")
-    except (ValueError, KeyError):
-        raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY, "AI returned an unparseable response."
-        )
+    results = _run_ai(ai_service.recommend, borrowed, _books_payload(db))
 
     borrowed_ids = {bid for bid, _ in borrowed}
     hits = [h for h in _to_hits(db, results) if h.book_id not in borrowed_ids]
     return AIRecommendResponse(student_id=student_id, recommendations=hits)
+
+
+@router.post("/enrich", response_model=AIEnrichResponse)
+def ai_enrich(
+    payload: AIEnrichRequest,
+    _=Depends(require_librarian),
+):
+    """Suggest genre / reading level / summary for a book. Librarian-only.
+
+    Returns suggestions only — the librarian reviews them before saving the book.
+    """
+    _require_ai()
+    if not payload.title.strip():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "title must not be empty")
+    meta = _run_ai(ai_service.enrich_book, payload.title, payload.author)
+    return AIEnrichResponse(title=payload.title, author=payload.author, **meta)

@@ -115,28 +115,68 @@ def books_tab():
 
     if books:
         df = pd.DataFrame(books)[
-            ["book_id", "title", "author", "available_copies", "total_copies"]
+            ["book_id", "title", "author", "genre", "available_copies", "total_copies"]
         ]
         st.dataframe(df, hide_index=True, use_container_width=True)
     else:
         st.info("No matching books.")
 
     if is_librarian():
-        with st.expander("➕ Add a new book"):
-            with st.form("add_book_form", clear_on_submit=True):
-                col1, col2 = st.columns(2)
-                book_id = col1.text_input("Book ID (e.g. B007)")
-                title = col2.text_input("Title")
-                col3, col4 = st.columns(2)
-                author = col3.text_input("Author")
-                copies = col4.number_input("Total copies", min_value=0, value=1, step=1)
-                if st.form_submit_button("Add book"):
-                    ok, payload = api.add_book(book_id, title, author, int(copies))
-                    if ok:
-                        st.success(f"Added '{payload['title']}'.")
-                        st.rerun()
-                    else:
-                        st.error(payload)
+        _add_book_form()
+
+
+# Keys used by the add-book form, so we can clear them after a successful add.
+_ADD_KEYS = [
+    "add_book_id", "add_title", "add_author",
+    "add_genre", "add_reading_level", "add_summary",
+]
+
+
+def _add_book_form():
+    with st.expander("➕ Add a new book"):
+        # Clear the fields on the run *after* a successful add (safe: before widgets exist).
+        if st.session_state.pop("_book_added", False):
+            for k in _ADD_KEYS:
+                st.session_state.pop(k, None)
+
+        c1, c2 = st.columns(2)
+        book_id = c1.text_input("Book ID (e.g. B007)", key="add_book_id")
+        title = c2.text_input("Title", key="add_title")
+        author = st.text_input("Author", key="add_author")
+
+        # AI auto-fill (Gemini) — populates the fields below for the librarian to review.
+        if st.button("✨ Suggest genre, level & summary with AI"):
+            if not title.strip():
+                st.info("Enter a title first.")
+            else:
+                with st.spinner("Asking Gemini…"):
+                    ok, payload = api.ai_enrich(title, author)
+                if ok:
+                    st.session_state["add_genre"] = payload["genre"]
+                    st.session_state["add_reading_level"] = payload["reading_level"]
+                    st.session_state["add_summary"] = payload["summary"]
+                    st.rerun()
+                else:
+                    st.error(payload)
+
+        c3, c4, c5 = st.columns([2, 2, 1])
+        genre = c3.text_input("Genre", key="add_genre")
+        reading_level = c4.text_input("Reading level", key="add_reading_level")
+        copies = c5.number_input("Copies", min_value=0, value=1, step=1, key="add_copies")
+        summary = st.text_area("Summary", key="add_summary")
+
+        if st.button("Add book", type="primary"):
+            ok, payload = api.add_book(
+                book_id, title, author, int(copies),
+                genre=genre or None, reading_level=reading_level or None,
+                summary=summary or None,
+            )
+            if ok:
+                st.success(f"Added '{payload['title']}'.")
+                st.session_state["_book_added"] = True
+                st.rerun()
+            else:
+                st.error(payload)
 
 
 # --------------------------------------------------------------------------- #
@@ -245,8 +285,8 @@ def _render_hits(hits):
 def ai_tab():
     st.subheader("🤖 AI Librarian")
     st.caption(
-        "Powered by Claude. Ask in plain language, or get recommendations from a "
-        "reader's history. (Requires ANTHROPIC_API_KEY on the backend.)"
+        "Powered by Google Gemini. Ask in plain language, or get recommendations "
+        "from a reader's history. (Requires GEMINI_API_KEY on the backend.)"
     )
 
     st.markdown("### Ask for a book")
