@@ -16,19 +16,13 @@ from .database import Base, SessionLocal, engine
 from .models import Book, Student, User
 from .security import hash_password
 
-# backend/app/seed_data.py -> parents[2] == repo root
-REPO_ROOT = Path(__file__).resolve().parents[2]
+# backend/app/seed_data.py -> parents[1] == backend/ ; seed CSVs live in backend/seed/
+SEED_DIR = Path(__file__).resolve().parents[1] / "seed"
 
 
 def _find_csv(name: str) -> Path | None:
-    for candidate in (
-        REPO_ROOT / name,
-        REPO_ROOT / "Python_GUI" / name,
-        REPO_ROOT / "my_app" / "public" / name,
-    ):
-        if candidate.exists():
-            return candidate
-    return None
+    candidate = SEED_DIR / name
+    return candidate if candidate.exists() else None
 
 
 def _seed_books(db) -> int:

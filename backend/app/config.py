@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password: str = ""
 
+    # AI features (Claude API). Leave the key blank to disable AI endpoints (they return 503).
+    anthropic_api_key: str = ""
+    ai_model: str = "claude-opus-4-8"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

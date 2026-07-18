@@ -22,9 +22,17 @@ Streamlit frontend.
                                           │  users · books · students ·  │
                                           │  borrow_records              │
                                           └──────────────────────────────┘
+```
 
-Python_GUI/  → the original Tkinter app (kept for reference / provenance)
-my_app/      → the original React prototype (kept for reference)
+### Repository layout
+
+```
+backend/           FastAPI + SQLAlchemy API (the source of truth)
+  ├── app/         config · database · models · schemas · security · routers
+  └── seed/        canonical seed CSVs (books, students)
+streamlit_app/     Streamlit UI — a thin API client
+legacy/
+  └── tkinter_app/ the original Tkinter + CSV app, kept for provenance
 ```
 
 ## 🚀 Features
@@ -38,7 +46,9 @@ my_app/      → the original React prototype (kept for reference)
 - **Fixed penalty bug** — the original computed the due date as *today − grace
   period* (always penalising); the ported logic correctly uses *issue date +
   grace period*.
-- Original **Tkinter GUI** and **React** prototype retained to show the evolution.
+- **AI Librarian (Claude)** — natural-language catalogue search and personalized
+  recommendations from borrow history; degrades gracefully to 503 without an API key.
+- Original **Tkinter GUI** retained under `legacy/` to show the evolution.
 
 ## ⚡ Quick start
 
@@ -63,54 +73,17 @@ See [backend/README.md](backend/README.md) and
 
 ---
 
-## ✅ Important Takeaways
+## ✅ What this project demonstrates
 
-- Practiced full-stack design by converting a Python GUI application into an interactive React website.
-- Learned to handle CSV data in a React application using `papaparse`.
-- Gained experience in creating a responsive user interface with modern CSS and React components.
-- Aligned front-end design with back-end logic by replicating the original Python GUI workflow on the web.
-
----
-
-## 📂 Project Overview
-
-<div align="center">
-
-<table>
-  <tr>
-    <td align="center" width="350">
-      <img src="https://img.icons8.com/color/100/000000/python.png" width="60" alt="Python Logo"><br/>
-      <strong>Tkinter GUI Platform</strong><br/>
-      <p>A Python Tkinter-based desktop app for managing library inventory and student checkouts.</p>
-    </td>
-    <td align="center" width="350">
-      <img src="https://img.icons8.com/color/100/000000/react-native.png" width="60" alt="React Logo"><br/>
-      <strong>React Webpage</strong><br/>
-      <p>A responsive website using React replicating the GUI app for browser-based access.</p>
-    </td>
-  </tr>
-</table>
-
-</div>
-
----
-
-## 🛠️ Setup Instructions
-
-### 🔹 For GUI Version
-1. Navigate to the `Python_GUI` project directory.
-2. Ensure you have Python 3 and Tkinter installed.
-3. Run `codes.py` using a Python IDE or terminal: `python codes.py`.
-4. Make sure the `.csv` files are in the same directory.
-
-### 🔹 For Web Version
-1. Navigate to the `my_app` folder.
-2. Install the required dependencies: `npm install`.
-3. Start the development server: `npm run dev`.
-4. Open the provided URL in your preferred browser.
+- Designing a **REST API** with FastAPI: routing, dependency injection, OpenAPI docs.
+- **Relational data modelling** with SQLAlchemy and a DB-agnostic config (SQLite ↔ Postgres).
+- **Auth & authorization** — JWT tokens, bcrypt hashing, role-based access control.
+- Porting real domain logic from a legacy app, **fixing a bug** in the process.
+- A clean **client/server split**: the Streamlit UI holds no business logic.
+- A story of **evolution** — from a single-file Tkinter script to a deployable service.
 
 ---
 
 ## 📌 Disclaimer
 
-This dual-version library management system was developed for academic and portfolio purposes. **Redistributing or presenting this project as your own is strictly prohibited.**
+This project was developed for academic and portfolio purposes. **Redistributing or presenting this project as your own is strictly prohibited.**

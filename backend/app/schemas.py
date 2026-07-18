@@ -83,3 +83,27 @@ class BorrowRecordOut(BaseModel):
     due_date: datetime
     return_date: datetime | None
     penalty: float
+
+
+# ---- AI ----
+class AISearchRequest(BaseModel):
+    query: str
+
+
+class AIHit(BaseModel):
+    """A book the AI surfaced, enriched with live catalogue data + its rationale."""
+    book_id: str
+    title: str
+    author: str
+    available_copies: int
+    reason: str
+
+
+class AISearchResponse(BaseModel):
+    query: str
+    hits: list[AIHit]
+
+
+class AIRecommendResponse(BaseModel):
+    student_id: str
+    recommendations: list[AIHit]

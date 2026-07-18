@@ -81,3 +81,12 @@ def issue_book(book_id, student_id):
 
 def return_book(book_id, student_id):
     return _request("POST", "/borrow/return", json={"book_id": book_id, "student_id": student_id})
+
+
+# ---- AI ----
+def ai_search(query: str):
+    return _request("POST", "/ai/search", json={"query": query})
+
+
+def ai_recommend(student_id: str):
+    return _request("GET", f"/ai/recommend/{student_id}")

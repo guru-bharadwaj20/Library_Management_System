@@ -229,6 +229,63 @@ def circulation_tab():
 
 
 # --------------------------------------------------------------------------- #
+# AI Librarian
+# --------------------------------------------------------------------------- #
+def _render_hits(hits):
+    for h in hits:
+        with st.container(border=True):
+            st.markdown(f"**{h['title']}** — {h['author']}  \n`{h['book_id']}`")
+            st.caption(f"💬 {h['reason']}")
+            if h["available_copies"] > 0:
+                st.success(f"{h['available_copies']} available", icon="✅")
+            else:
+                st.warning("Currently out of stock", icon="⛔")
+
+
+def ai_tab():
+    st.subheader("🤖 AI Librarian")
+    st.caption(
+        "Powered by Claude. Ask in plain language, or get recommendations from a "
+        "reader's history. (Requires ANTHROPIC_API_KEY on the backend.)"
+    )
+
+    st.markdown("### Ask for a book")
+    query = st.text_input(
+        "Describe what you're looking for",
+        placeholder="e.g. a short dystopian novel about surveillance",
+        key="ai_query",
+    )
+    if st.button("Search with AI", type="primary"):
+        if not query.strip():
+            st.info("Type what you're after first.")
+        else:
+            with st.spinner("Asking the AI librarian…"):
+                ok, payload = api.ai_search(query)
+            if not ok:
+                st.error(payload)
+            elif payload["hits"]:
+                _render_hits(payload["hits"])
+            else:
+                st.info("No good matches — try rephrasing.")
+
+    st.divider()
+    st.markdown("### Recommend for a reader")
+    student_id = st.text_input("Student ID", placeholder="e.g. S001", key="ai_rec_student")
+    if st.button("Recommend books"):
+        if not student_id.strip():
+            st.info("Enter a Student ID first.")
+        else:
+            with st.spinner("Finding personalized picks…"):
+                ok, payload = api.ai_recommend(student_id.strip())
+            if not ok:
+                st.error(payload)
+            elif payload["recommendations"]:
+                _render_hits(payload["recommendations"])
+            else:
+                st.info("No recommendations yet — this reader may have no borrow history.")
+
+
+# --------------------------------------------------------------------------- #
 # Main
 # --------------------------------------------------------------------------- #
 def main():
@@ -246,7 +303,9 @@ def main():
     st.title("Library Management System")
 
     if is_librarian():
-        tabs = st.tabs(["📊 Dashboard", "📖 Books", "🎓 Students", "🔄 Circulation"])
+        tabs = st.tabs(
+            ["📊 Dashboard", "📖 Books", "🎓 Students", "🔄 Circulation", "🤖 AI Librarian"]
+        )
         with tabs[0]:
             dashboard_tab()
         with tabs[1]:
@@ -255,12 +314,16 @@ def main():
             students_tab()
         with tabs[3]:
             circulation_tab()
+        with tabs[4]:
+            ai_tab()
     else:
-        tabs = st.tabs(["📖 Books", "🎓 Students"])
+        tabs = st.tabs(["📖 Books", "🎓 Students", "🤖 AI Librarian"])
         with tabs[0]:
             books_tab()
         with tabs[1]:
             students_tab()
+        with tabs[2]:
+            ai_tab()
 
 
 if __name__ == "__main__":
