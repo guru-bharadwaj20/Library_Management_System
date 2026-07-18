@@ -1,14 +1,65 @@
 # Library Management System
 
-This repository contains a hybrid Library Management System featuring both a **Tkinter-based Python GUI** and a **modern React-based front-end website**. It provides core library functionalities like managing books and students, issuing, and returning books through both a classic desktop interface and a responsive web interface.
+A Library Management System that has grown from a single-file **Tkinter desktop app**
+into a real, deployable **full-stack application**: a FastAPI + SQLAlchemy REST API
+with JWT auth and role-based access, backed by a relational database, and a
+Streamlit frontend.
 
 ---
 
+## 🧭 Architecture
+
+```
+┌──────────────────┐        HTTP/JSON        ┌────────────────────────┐
+│  streamlit_app/  │  ───────────────────▶   │       backend/         │
+│  Streamlit UI    │   JWT Bearer token      │  FastAPI + SQLAlchemy  │
+│  (API client)    │  ◀───────────────────   │  auth · books ·        │
+└──────────────────┘                         │  students · borrow     │
+                                             └───────────┬────────────┘
+                                                         │
+                                          ┌──────────────▼──────────────┐
+                                          │  SQLite (dev) / Postgres     │
+                                          │  users · books · students ·  │
+                                          │  borrow_records              │
+                                          └──────────────────────────────┘
+
+Python_GUI/  → the original Tkinter app (kept for reference / provenance)
+my_app/      → the original React prototype (kept for reference)
+```
+
 ## 🚀 Features
 
-- A robust **Tkinter GUI** application for searching books and students, issuing books, and handling returns.
-- A parallel **React Website** with a clean, responsive layout, allowing users to perform the same actions as the GUI in a web browser.
-- Data persistence is handled through **CSV files**, which are shared between the Python backend and the React frontend.
+- **FastAPI backend** — REST API, OpenAPI docs, JWT auth, librarian vs. student roles.
+- **Relational persistence** — `borrow_records` replaces the old `logs.csv`; the
+  backend is the single source of truth (no more client-side CSV mutation that
+  vanished on refresh).
+- **Streamlit frontend** — role-aware UI with a live metrics dashboard, search,
+  circulation, and per-student borrowing history.
+- **Fixed penalty bug** — the original computed the due date as *today − grace
+  period* (always penalising); the ported logic correctly uses *issue date +
+  grace period*.
+- Original **Tkinter GUI** and **React** prototype retained to show the evolution.
+
+## ⚡ Quick start
+
+```bash
+# 1. Backend
+cd backend && python -m venv .venv && .venv\Scripts\activate   # (Windows)
+pip install -r requirements.txt
+cp .env.example .env
+python -m app.seed_data          # seeds data + prints librarian credentials
+uvicorn app.main:app --reload    # API at http://localhost:8000/docs
+
+# 2. Frontend (new terminal)
+cd streamlit_app && python -m venv .venv && .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env
+streamlit run app.py             # UI at http://localhost:8501
+```
+
+See [backend/README.md](backend/README.md) and
+[streamlit_app/README.md](streamlit_app/README.md) for full setup and deployment
+(Supabase / Render / Streamlit Cloud) notes.
 
 ---
 
