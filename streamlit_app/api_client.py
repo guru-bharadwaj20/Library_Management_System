@@ -102,3 +102,12 @@ def ai_recommend(student_id: str):
 
 def ai_enrich(title: str, author: str):
     return _request("POST", "/ai/enrich", json={"title": title, "author": author})
+
+
+def semantic_search(query: str):
+    return _request("GET", "/ai/semantic-search", params={"q": query})
+
+
+# ---- Analytics ----
+def analytics_summary():
+    return _request("GET", "/analytics/summary")

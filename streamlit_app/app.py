@@ -282,31 +282,75 @@ def _render_hits(hits):
                 st.warning("Currently out of stock", icon="⛔")
 
 
+def _render_semantic_hits(hits):
+    for h in hits:
+        with st.container(border=True):
+            st.markdown(f"**{h['title']}** — {h['author']}  \n`{h['book_id']}`")
+            meta = f"📐 similarity {h['score']:.3f}"
+            if h.get("genre"):
+                meta += f"  ·  {h['genre']}"
+            st.caption(meta)
+            if h["available_copies"] > 0:
+                st.success(f"{h['available_copies']} available", icon="✅")
+            else:
+                st.warning("Currently out of stock", icon="⛔")
+
+
 def ai_tab():
     st.subheader("🤖 AI Librarian")
     st.caption(
-        "Powered by Google Gemini. Ask in plain language, or get recommendations "
-        "from a reader's history. (Requires GEMINI_API_KEY on the backend.)"
+        "Powered by Google Gemini. (Requires GEMINI_API_KEY on the backend.)"
     )
 
-    st.markdown("### Ask for a book")
-    query = st.text_input(
-        "Describe what you're looking for",
-        placeholder="e.g. a short dystopian novel about surveillance",
-        key="ai_query",
+    st.markdown("### Find a book")
+    mode = st.radio(
+        "Search technique",
+        ["AI Search (LLM reasoning)", "Semantic Search (embeddings)"],
+        horizontal=True,
+        key="ai_mode",
     )
-    if st.button("Search with AI", type="primary"):
-        if not query.strip():
-            st.info("Type what you're after first.")
-        else:
-            with st.spinner("Asking the AI librarian…"):
-                ok, payload = api.ai_search(query)
-            if not ok:
-                st.error(payload)
-            elif payload["hits"]:
-                _render_hits(payload["hits"])
+
+    if mode.startswith("AI Search"):
+        st.caption("Gemini reads the whole catalogue and reasons about your request in one prompt.")
+        query = st.text_input(
+            "Describe what you're looking for",
+            placeholder="e.g. a short dystopian novel about surveillance",
+            key="ai_query",
+        )
+        if st.button("Search", type="primary", key="ai_search_btn"):
+            if not query.strip():
+                st.info("Type what you're after first.")
             else:
-                st.info("No good matches — try rephrasing.")
+                with st.spinner("Asking the AI librarian…"):
+                    ok, payload = api.ai_search(query)
+                if not ok:
+                    st.error(payload)
+                elif payload["hits"]:
+                    _render_hits(payload["hits"])
+                else:
+                    st.info("No good matches — try rephrasing.")
+    else:
+        st.caption(
+            "Your query and each book are turned into embedding vectors; results are "
+            "ranked by cosine similarity. (Backfill first: `python -m app.seed_embeddings`.)"
+        )
+        query = st.text_input(
+            "Describe what you're looking for",
+            placeholder="e.g. surveillance and lost freedom",
+            key="sem_query",
+        )
+        if st.button("Search", type="primary", key="sem_search_btn"):
+            if not query.strip():
+                st.info("Type what you're after first.")
+            else:
+                with st.spinner("Embedding and ranking…"):
+                    ok, payload = api.semantic_search(query)
+                if not ok:
+                    st.error(payload)
+                elif payload["hits"]:
+                    _render_semantic_hits(payload["hits"])
+                else:
+                    st.info("No embedded books to search. Run the backfill script, then retry.")
 
     st.divider()
     st.markdown("### Recommend for a reader")
@@ -323,6 +367,41 @@ def ai_tab():
                 _render_hits(payload["recommendations"])
             else:
                 st.info("No recommendations yet — this reader may have no borrow history.")
+
+
+# --------------------------------------------------------------------------- #
+# Analytics (librarian only)
+# --------------------------------------------------------------------------- #
+def analytics_tab():
+    st.subheader("📊 Circulation analytics")
+    st.caption("Computed from full borrowing history (BorrowRecord), not just live counts.")
+    ok, data = api.analytics_summary()
+    if not ok:
+        st.error(data)
+        return
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Total loans (all time)", data["total_loans"])
+    c2.metric("Active loans", data["active_loans"])
+    c3.metric("Overdue now", data["overdue_count"])
+    c4.metric("Penalty revenue", f"${data['total_penalty_revenue']:.2f}")
+
+    avg = data["avg_loan_duration_days"]
+    st.metric("Average loan duration", f"{avg:.1f} days" if avg is not None else "—")
+
+    st.divider()
+    st.markdown("**Most-borrowed titles**")
+    mb = data["most_borrowed"]
+    if mb:
+        chart_df = pd.DataFrame(mb)[["title", "count"]].set_index("title")
+        st.bar_chart(chart_df)
+        st.dataframe(
+            pd.DataFrame(mb)[["book_id", "title", "count"]],
+            hide_index=True,
+            use_container_width=True,
+        )
+    else:
+        st.info("No circulation history yet — issue and return some books first.")
 
 
 # --------------------------------------------------------------------------- #
@@ -344,7 +423,8 @@ def main():
 
     if is_librarian():
         tabs = st.tabs(
-            ["📊 Dashboard", "📖 Books", "🎓 Students", "🔄 Circulation", "🤖 AI Librarian"]
+            ["📊 Dashboard", "📖 Books", "🎓 Students", "🔄 Circulation",
+             "🤖 AI Librarian", "📈 Analytics"]
         )
         with tabs[0]:
             dashboard_tab()
@@ -356,6 +436,8 @@ def main():
             circulation_tab()
         with tabs[4]:
             ai_tab()
+        with tabs[5]:
+            analytics_tab()
     else:
         tabs = st.tabs(["📖 Books", "🎓 Students", "🤖 AI Librarian"])
         with tabs[0]:

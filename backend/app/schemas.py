@@ -126,3 +126,34 @@ class AIEnrichResponse(BaseModel):
     genre: str
     reading_level: str
     summary: str
+
+
+class SemanticHit(BaseModel):
+    """A book surfaced by embedding similarity, with its cosine score."""
+    book_id: str
+    title: str
+    author: str
+    available_copies: int
+    genre: str | None = None
+    score: float
+
+
+class SemanticSearchResponse(BaseModel):
+    query: str
+    hits: list[SemanticHit]
+
+
+# ---- Analytics ----
+class MostBorrowed(BaseModel):
+    book_id: str
+    title: str
+    count: int
+
+
+class AnalyticsSummary(BaseModel):
+    most_borrowed: list[MostBorrowed]
+    total_penalty_revenue: float
+    active_loans: int
+    total_loans: int
+    overdue_count: int
+    avg_loan_duration_days: float | None

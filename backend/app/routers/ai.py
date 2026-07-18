@@ -5,11 +5,13 @@ All degrade gracefully: if no GEMINI_API_KEY is configured they return 503, so
 the rest of the system works without AI. Every book_id the model returns for
 search/recommend is validated against the live catalogue before being sent back.
 """
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from google.genai import errors as genai_errors
 from sqlalchemy.orm import Session
 
-from .. import ai_service
+from .. import ai_service, embeddings_service
 from ..database import get_db
 from ..deps import get_current_user, require_librarian
 from ..models import Book, BorrowRecord, Student
@@ -20,7 +22,11 @@ from ..schemas import (
     AIRecommendResponse,
     AISearchRequest,
     AISearchResponse,
+    SemanticHit,
+    SemanticSearchResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -93,6 +99,46 @@ def ai_search(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "query must not be empty")
     results = _run_ai(ai_service.semantic_search, payload.query, _books_payload(db))
     return AISearchResponse(query=payload.query, hits=_to_hits(db, results))
+
+
+@router.get("/semantic-search", response_model=SemanticSearchResponse)
+def ai_semantic_search(
+    q: str,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """Embedding-based search: rank books by cosine similarity to the query vector.
+
+    Distinct from /ai/search (which is Gemini reasoning over the catalogue in one
+    prompt). Books without a stored embedding are excluded, not errored.
+    """
+    _require_ai()
+    if not q.strip():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "q must not be empty")
+
+    query_vec = _run_ai(embeddings_service.embed_text, q)
+
+    candidates = []
+    for book in db.query(Book).all():
+        vec = embeddings_service.decode(book.embedding)
+        if vec is None:
+            logger.warning("Book %s has no embedding; excluded from semantic search.", book.book_id)
+            continue
+        candidates.append((book, vec))
+
+    ranked = embeddings_service.rank(query_vec, candidates)[:5]
+    hits = [
+        SemanticHit(
+            book_id=b.book_id,
+            title=b.title,
+            author=b.author,
+            available_copies=b.available_copies,
+            genre=b.genre,
+            score=round(score, 4),
+        )
+        for b, score in ranked
+    ]
+    return SemanticSearchResponse(query=q, hits=hits)
 
 
 @router.get("/recommend/{student_id}", response_model=AIRecommendResponse)

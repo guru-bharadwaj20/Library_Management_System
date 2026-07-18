@@ -10,7 +10,7 @@ always produced a penalty. The correct semantics — a book is due
 """
 from datetime import datetime, timedelta
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from .config import settings
@@ -40,6 +40,9 @@ class Book(Base):
     genre = Column(String, nullable=True)
     reading_level = Column(String, nullable=True)
     summary = Column(String, nullable=True)
+    # Semantic-search embedding: a JSON-encoded list of floats (SQLite has no
+    # vector type). Computed on book creation / backfill; NULL until then.
+    embedding = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     records = relationship("BorrowRecord", back_populates="book")

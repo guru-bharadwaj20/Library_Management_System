@@ -1,14 +1,38 @@
 """Book catalogue: search/list (any user) and add (librarian only)."""
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from .. import embeddings_service
 from ..database import get_db
 from ..deps import get_current_user, require_librarian
 from ..models import Book
 from ..schemas import BookCreate, BookOut
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/books", tags=["books"])
+
+
+def _maybe_embed(db: Session, book: Book) -> None:
+    """Compute and store a semantic-search embedding for a freshly-saved book.
+
+    Best-effort: if the AI key is missing or the embedding call fails, the book
+    is still created — it just won't appear in semantic search until backfilled.
+    """
+    if not embeddings_service.is_configured():
+        return
+    try:
+        text = embeddings_service.book_embedding_text(
+            book.title, book.author, book.genre, book.summary
+        )
+        book.embedding = embeddings_service.encode(embeddings_service.embed_text(text))
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 — never fail a create over an optional embedding
+        db.rollback()
+        logger.warning("Could not embed book %s: %s", book.book_id, exc)
 
 
 @router.get("", response_model=list[BookOut])
@@ -44,5 +68,7 @@ def add_book(
     )
     db.add(book)
     db.commit()
+    db.refresh(book)
+    _maybe_embed(db, book)  # also covers the enrich-then-save flow (enriched fields are embedded)
     db.refresh(book)
     return book

@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     # AI features (Google Gemini). Leave the key blank to disable AI endpoints (they return 503).
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
+    embedding_model: str = "gemini-embedding-001"
 
     @property
     def cors_origins_list(self) -> list[str]:

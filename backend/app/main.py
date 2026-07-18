@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .database import Base, engine
-from .routers import ai, auth, books, borrow, students
+from .routers import ai, analytics, auth, books, borrow, students
 
 # Create tables on startup. This is fine for dev and small deployments, but for
 # real production use replace it with Alembic migrations so schema changes are
@@ -30,6 +30,7 @@ app.include_router(books.router)
 app.include_router(students.router)
 app.include_router(borrow.router)
 app.include_router(ai.router)
+app.include_router(analytics.router)
 
 
 @app.get("/health", tags=["meta"])
