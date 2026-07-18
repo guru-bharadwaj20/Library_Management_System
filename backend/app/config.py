@@ -1,8 +1,9 @@
 """Application configuration.
 
 Values are read from environment variables (or a local ``.env`` file) via
-pydantic-settings, so the same codebase runs unchanged in dev (SQLite) and
-production (Postgres) by swapping ``DATABASE_URL`` alone.
+pydantic-settings. This project runs on a local SQLite database by design;
+``DATABASE_URL`` is routed through SQLAlchemy so another backend *could* be
+dropped in, but that is not a goal here — see the README's "Known limitations".
 """
 from functools import lru_cache
 

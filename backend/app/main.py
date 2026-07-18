@@ -6,9 +6,10 @@ from .config import settings
 from .database import Base, engine
 from .routers import ai, analytics, auth, books, borrow, students
 
-# Create tables on startup. This is fine for dev and small deployments, but for
-# real production use replace it with Alembic migrations so schema changes are
-# versioned and reversible.
+# Create tables on startup. This project targets a local, single-user SQLite
+# database by design, so create_all is the right tool here — no migration
+# framework is needed for the intended scope. (If the schema changes, delete
+# library.db and re-seed.)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(

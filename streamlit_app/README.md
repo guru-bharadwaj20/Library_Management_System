@@ -7,14 +7,20 @@ and calls endpoints.
 ## Features
 
 - JWT login (token held in `st.session_state`, in memory)
-- **Role-aware UI**: librarians get a dashboard, circulation (issue/return), and
-  add-book / add-student forms; students get a read-only catalogue + history view
-- Live metrics dashboard (titles, copies, on-loan, out-of-stock) with charts
-- Book / student search and per-student borrowing history
+- **Role-aware UI**:
+  - **Librarian** — Dashboard, Books (with an "✨ Suggest with AI" add-book flow),
+    Students, Circulation (issue/return), AI Librarian, and Analytics tabs.
+  - **Student** — read-only catalogue, student search/history, and AI Librarian.
+- **AI Librarian tab** — toggle between *AI Search (LLM reasoning)* and
+  *Semantic Search (embeddings, with similarity scores)*, plus per-reader
+  recommendations.
+- **Analytics tab** (librarian) — most-borrowed titles (bar chart), penalty
+  revenue, active vs. historical loans, overdue count, average loan duration.
 
 ## Local setup
 
-Start the [backend](../backend/README.md) first, then:
+Start the [backend](../backend/README.md) first (including
+`python -m app.seed_embeddings` if you want semantic search populated), then:
 
 ```bash
 cd streamlit_app
@@ -30,10 +36,12 @@ streamlit run app.py
 Open http://localhost:8501 and sign in with the librarian credentials printed by
 the backend's `seed_data.py`.
 
-## Deployment (Streamlit Community Cloud)
+## Configuration
 
-1. Push the repo to GitHub.
-2. On [share.streamlit.io](https://share.streamlit.io), point at `streamlit_app/app.py`.
-3. Add `API_URL` (your deployed backend URL) under **App settings → Secrets** or
-   as an environment variable.
-4. Make sure the backend's `CORS_ORIGINS` includes the Streamlit app URL.
+| Var | Default | Purpose |
+|-----|---------|---------|
+| `API_URL` | `http://localhost:8000` | Base URL of the FastAPI backend |
+
+The AI Librarian and Analytics tabs simply call backend endpoints — if the backend
+has no `GEMINI_API_KEY`, the AI features surface a clear "not configured" message
+and the rest of the UI keeps working.
