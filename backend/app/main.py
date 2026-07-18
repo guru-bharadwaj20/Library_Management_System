@@ -1,10 +1,16 @@
 """FastAPI application entrypoint."""
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .database import Base, engine
 from .routers import ai, analytics, auth, books, borrow, students
+
+# Static customer web frontend (repo_root/frontend_web), served by this backend.
+FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend_web"
 
 # Create tables on startup. This project targets a local, single-user SQLite
 # database by design, so create_all is the right tool here — no migration
@@ -37,3 +43,7 @@ app.include_router(analytics.router)
 @app.get("/health", tags=["meta"])
 def health():
     return {"status": "ok"}
+
+
+# Mounted last so API routes above take precedence. The customer site is at /app/.
+app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
